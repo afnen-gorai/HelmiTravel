@@ -1,0 +1,2 @@
+import {DataTypes} from 'sequelize'
+export async function up({queryInterface}){const columns=await queryInterface.describeTable('destinations');if(!columns.latitude)await queryInterface.addColumn('destinations','latitude',{type:DataTypes.DECIMAL(10,7),allowNull:true});if(!columns.longitude)await queryInterface.addColumn('destinations','longitude',{type:DataTypes.DECIMAL(10,7),allowNull:true});if(!columns.galerie)await queryInterface.addColumn('destinations','galerie',{type:DataTypes.JSON,allowNull:true})}

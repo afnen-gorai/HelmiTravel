@@ -1,0 +1,32 @@
+import {Op} from 'sequelize'
+import {User,Destination,Hotel,Trip,Booking,Review,Promotion,Newsletter,Contact,Notification} from '../models/index.js'
+import {notify} from '../services/notificationService.js'
+const activePromotion={active:true,date_debut:{[Op.lte]:new Date()},date_fin:{[Op.gte]:new Date()}}
+export async function home(req,res,next){try{const [destinations,hotels,trips,promotions,reviews]=await Promise.all([
+  Destination.findAll({limit:6,order:[['createdAt','DESC']]}),
+  Hotel.findAll({where:{disponibilite:true},include:[Destination,{model:Review,attributes:['rating']}],limit:6,order:[['createdAt','DESC']]}),
+  Trip.findAll({where:{statut:'publie',places:{[Op.gt]:0}},include:[Destination,{model:Review,attributes:['rating']}],limit:6,order:[['date_depart','ASC']]}),
+  Promotion.findAll({where:activePromotion,limit:4,order:[['date_fin','ASC']]}),
+  Review.findAll({where:{comment:{[Op.ne]:null}},include:[{model:User,attributes:['nom','prenom','photo']},{model:Hotel,attributes:['id','nom']},{model:Trip,attributes:['id','titre']}],limit:6,order:[['createdAt','DESC']]})
+]);res.json({destinations,hotels,trips,promotions,reviews})}catch(e){next(e)}}
+export async function promotions(req,res,next){try{res.json(await Promotion.findAll({where:activePromotion,order:[['date_fin','ASC']]}))}catch(e){next(e)}}
+export async function validatePromotion(req,res,next){try{const item=await Promotion.findOne({where:{...activePromotion,code:String(req.body.code||'').toUpperCase()}});if(!item)return res.status(404).json({message:'Code promotionnel invalide ou expiré'});const service=String(req.body.service||'');if(service&&item.cible!=='tous'&&item.cible!==service)return res.status(400).json({message:'Ce code promotionnel ne s’applique pas à ce service'});res.json(item)}catch(e){next(e)}}
+export async function adminPromotions(req,res,next){try{res.json(await Promotion.findAll({order:[['createdAt','DESC']]}))}catch(e){next(e)}}
+export async function createPromotion(req,res,next){try{res.status(201).json(await Promotion.create({...req.body,code:String(req.body.code).toUpperCase()}))}catch(e){next(e)}}
+export async function updatePromotion(req,res,next){try{const item=await Promotion.findByPk(req.params.id);if(!item)return res.sendStatus(404);res.json(await item.update({...req.body,code:String(req.body.code).toUpperCase()}))}catch(e){next(e)}}
+export async function deletePromotion(req,res,next){try{const n=await Promotion.destroy({where:{id:req.params.id}});res.status(n?204:404).end()}catch(e){next(e)}}
+export async function adminReviews(req,res,next){try{res.json(await Review.findAll({include:[{model:User,attributes:['id','nom','prenom','email']},Hotel,Trip],order:[['createdAt','DESC']]}))}catch(e){next(e)}}
+export async function createReview(req,res,next){try{const hotelId=req.body.hotelId||null,tripId=req.body.tripId||null;if(!hotelId&&!tripId)return res.status(400).json({message:'Offre requise'});const target=hotelId?{hotelId}:{tripId};if(!await Booking.findOne({where:{userId:req.user.id,...target,status:{[Op.in]:['confirmee','terminee']}}}))return res.status(403).json({message:'Un avis nécessite une réservation confirmée'});if(await Review.findOne({where:{userId:req.user.id,...target}}))return res.status(409).json({message:'Vous avez déjà évalué cette offre'});res.status(201).json(await Review.create({userId:req.user.id,hotelId,tripId,rating:req.body.rating,comment:req.body.comment,date:new Date()}))}catch(e){next(e)}}
+export async function deleteReview(req,res,next){try{const n=await Review.destroy({where:{id:req.params.id}});res.status(n?204:404).end()}catch(e){next(e)}}
+export async function subscribe(req,res,next){try{if(!req.body.email)return res.status(400).json({message:'Adresse e-mail requise'});const [item,created]=await Newsletter.findOrCreate({where:{email:String(req.body.email).toLowerCase()},defaults:{active:true}});if(!created&&!item.active)await item.update({active:true});res.status(created?201:200).json({message:'Inscription enregistrée'})}catch(e){next(e)}}
+export async function newsletters(req,res,next){try{res.json(await Newsletter.findAll({order:[['createdAt','DESC']]}))}catch(e){next(e)}}
+export async function deleteNewsletter(req,res,next){try{const n=await Newsletter.destroy({where:{id:req.params.id}});res.status(n?204:404).end()}catch(e){next(e)}}
+export async function createContact(req,res,next){try{const {nom,email,sujet,message}=req.body;if(!nom||!email||!message)return res.status(400).json({message:'Nom, e-mail et message requis'});res.status(201).json(await Contact.create({nom,email,sujet,message}))}catch(e){next(e)}}
+export async function contacts(req,res,next){try{res.json(await Contact.findAll({order:[['createdAt','DESC']]}))}catch(e){next(e)}}
+export async function updateContactStatus(req,res,next){try{if(!['nouveau','lu','traite'].includes(req.body.statut))return res.status(400).json({message:'Statut invalide'});const item=await Contact.findByPk(req.params.id);if(!item)return res.sendStatus(404);res.json(await item.update({statut:req.body.statut}))}catch(e){next(e)}}
+export async function deleteContact(req,res,next){try{const n=await Contact.destroy({where:{id:req.params.id}});res.status(n?204:404).end()}catch(e){next(e)}}
+export async function myNotifications(req,res,next){try{res.json(await Notification.findAll({where:{userId:req.user.id},order:[['createdAt','DESC']]}))}catch(e){next(e)}}
+export async function readNotification(req,res,next){try{const item=await Notification.findOne({where:{id:req.params.id,userId:req.user.id}});if(!item)return res.sendStatus(404);res.json(await item.update({lue:true}))}catch(e){next(e)}}
+export async function adminNotifications(req,res,next){try{res.json(await Notification.findAll({include:{model:User,attributes:['id','nom','prenom','email']},order:[['createdAt','DESC']]}))}catch(e){next(e)}}
+export async function createNotification(req,res,next){try{if(!await User.findByPk(req.body.userId))return res.status(400).json({message:'Utilisateur invalide'});const result=await notify({userId:req.body.userId,category:'marketing',titre:req.body.titre,message:req.body.message,emailSubject:req.body.emailSubject||req.body.titre,smsMessage:req.body.message});res.status(201).json(result)}catch(e){next(e)}}
+export async function deleteNotification(req,res,next){try{const n=await Notification.destroy({where:{id:req.params.id}});res.status(n?204:404).end()}catch(e){next(e)}}

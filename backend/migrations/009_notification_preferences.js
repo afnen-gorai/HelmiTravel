@@ -1,0 +1,1 @@
+export async function up({queryInterface}){const indexes=await queryInterface.showIndex('notification_preferences');if(!indexes.some(x=>x.name==='uq_notification_preferences_user'))await queryInterface.addIndex('notification_preferences',['user_id'],{name:'uq_notification_preferences_user',unique:true})}

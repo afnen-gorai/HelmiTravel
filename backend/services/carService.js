@@ -1,0 +1,19 @@
+import {Op} from 'sequelize'
+import {sequelize} from '../config/database.js'
+import {Car,CarBooking,CarCategory,User} from '../models/index.js'
+const array=value=>Array.isArray(value)?value:String(value||'').split(/[,\n]/).map(x=>x.trim()).filter(Boolean)
+const normalize=data=>({...data,images:array(data.images),categoryId:Number(data.categoryId),places:Number(data.places),bagages:Number(data.bagages||1),prix_jour:Number(data.prix_jour)})
+const overlap=(start,end)=>({statut:{[Op.ne]:'annulee'},date_debut:{[Op.lt]:end},date_fin:{[Op.gt]:start}})
+export const categories=()=>CarCategory.findAll({order:[['nom','ASC']]})
+export const createCategory=data=>CarCategory.create(data)
+export const cars=async(query={})=>{const where={disponible:true};if(query.categoryId)where.categoryId=Number(query.categoryId);if(query.lieu)where.lieu={[Op.like]:`%${query.lieu}%`};if(query.prix_max)where.prix_jour={[Op.lte]:Number(query.prix_max)};if(query.places)where.places={[Op.gte]:Number(query.places)};const rows=await Car.findAll({where,include:[CarCategory],order:[[query.tri==='prix_desc'?'prix_jour':'createdAt',query.tri==='prix_desc'?'DESC':'DESC']]});if(!query.date_debut||!query.date_fin)return rows;if(!(new Date(query.date_debut)<new Date(query.date_fin)))throw Object.assign(new Error('Période de location invalide'),{status:422});const busy=await CarBooking.findAll({where:overlap(query.date_debut,query.date_fin),attributes:['carId']});const ids=new Set(busy.map(x=>x.carId));return rows.filter(x=>!ids.has(x.id))}
+export const car=id=>Car.findByPk(id,{include:[CarCategory]})
+export const adminCars=()=>Car.findAll({include:[CarCategory],order:[['createdAt','DESC']]})
+export const createCar=data=>Car.create(normalize(data))
+export async function updateCar(id,data){const item=await Car.findByPk(id);return item?item.update(normalize(data)):null}
+export async function deleteCar(id){if(await CarBooking.count({where:{carId:id}}))throw Object.assign(new Error('Ce véhicule possède un historique de locations'),{status:409});return Car.destroy({where:{id}})}
+export async function book(userId,data){let transaction;try{transaction=await sequelize.transaction();const car=await Car.findByPk(data.carId,{transaction,lock:transaction.LOCK.UPDATE});const start=new Date(data.date_debut),end=new Date(data.date_fin);if(!car||!car.disponible)throw Object.assign(new Error('Véhicule indisponible'),{status:409});if(!(start<end))throw Object.assign(new Error('Période de location invalide'),{status:422});if(await CarBooking.count({where:{carId:car.id,...overlap(data.date_debut,data.date_fin)},transaction}))throw Object.assign(new Error('Ce véhicule est déjà réservé pour cette période'),{status:409});const days=Math.ceil((end-start)/86400000);const booking=await CarBooking.create({userId,carId:car.id,date_debut:data.date_debut,date_fin:data.date_fin,prix_total:Number(car.prix_jour)*days,conducteur_nom:data.conducteur_nom,conducteur_document:data.conducteur_document,telephone:data.telephone,statut:'en_attente'},{transaction});await transaction.commit();transaction=null;return CarBooking.findByPk(booking.id,{include:[Car,User]})}catch(e){if(transaction)await transaction.rollback();throw e}}
+export const mine=userId=>CarBooking.findAll({where:{userId},include:[{model:Car,include:[CarCategory]}],order:[['createdAt','DESC']]})
+export const adminBookings=()=>CarBooking.findAll({include:[{model:User,attributes:['id','nom','prenom','email']},{model:Car,include:[CarCategory]}],order:[['createdAt','DESC']]})
+export async function status(id,statut){if(!['en_attente','confirmee','annulee','terminee'].includes(statut))throw Object.assign(new Error('Statut invalide'),{status:400});const item=await CarBooking.findByPk(id);return item?item.update({statut}):null}
+export const booking=id=>CarBooking.findByPk(id,{include:[User,{model:Car,include:[CarCategory]}]})

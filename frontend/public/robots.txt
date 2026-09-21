@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /compte
+Disallow: /reservation
+
+Sitemap: https://helmitravel.tn/sitemap.xml

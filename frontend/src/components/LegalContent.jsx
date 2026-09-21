@@ -1,0 +1,31 @@
+import React from 'react'
+
+const pages={
+  mentions:{title:'Mentions légales',intro:'Informations relatives à l’éditeur et à l’exploitation du site Helmi Travel.',sections:[
+    ['Éditeur du site',<><p><b>Helmi Travel</b><br/>12, Avenue Habib Bourguiba, Tunis, Tunisie<br/>contact@helmitravel.tn<br/>+216 71 000 700</p><p className="legal-warning">Forme juridique, capital social, matricule fiscal et numéro du registre national des entreprises : à compléter avant la mise en production.</p></>],
+    ['Responsable de publication',<p>Le responsable de publication est le représentant légal de Helmi Travel. Son identité complète doit être renseignée avant la publication officielle du site.</p>],
+    ['Hébergement',<p>Le nom, l’adresse et les coordonnées de l’hébergeur de production doivent être renseignés dès que le prestataire définitif est choisi.</p>],
+    ['Propriété intellectuelle',<p>Les textes, éléments graphiques, logos, photographies et fonctionnalités du site sont protégés. Toute reproduction, adaptation ou diffusion sans autorisation préalable est interdite, sous réserve des droits des partenaires et fournisseurs.</p>],
+    ['Responsabilité',<p>Helmi Travel s’efforce de fournir des informations exactes. Les disponibilités, horaires et prix restent soumis à confirmation lors de la réservation. Les sites externes relèvent de la responsabilité de leurs éditeurs.</p>]
+  ]},
+  cgv:{title:'Conditions générales de vente',intro:'Conditions applicables aux réservations de voyages, hôtels, vols et locations de voitures.',sections:[
+    ['Objet et acceptation',<p>Les présentes conditions régissent toute réservation effectuée auprès de Helmi Travel. La validation d’une commande implique leur acceptation par le client, qui reconnaît avoir vérifié les caractéristiques, dates, prix et conditions de l’offre.</p>],
+    ['Prix et réservation',<p>Les prix sont affichés en dinars tunisiens, taxes comprises sauf indication contraire. Une réservation devient définitive après confirmation de disponibilité et validation du paiement ou de l’accord de paiement en agence. Une erreur manifeste de prix peut entraîner l’annulation avec remboursement des sommes versées.</p>],
+    ['Paiement',<p>Les moyens proposés peuvent inclure le paiement en agence, par carte ou via PayPal selon leur disponibilité. Les transactions en ligne sont traitées par le prestataire configuré. Helmi Travel ne conserve pas les données complètes des cartes bancaires.</p>],
+    ['Modification et annulation',<p>Toute demande doit être adressée à l’agence avec la référence du dossier. Les frais dépendent du tarif, de la date de la demande et des conditions du fournisseur. Une prestation non remboursable reste due. En cas d’annulation par Helmi Travel, une solution équivalente ou le remboursement des prestations non fournies sera proposé.</p>],
+    ['Obligations du voyageur',<p>Le voyageur doit vérifier la validité de son passeport, ses visas, assurances, exigences sanitaires et autorisations. Les informations communiquées doivent correspondre exactement aux documents officiels.</p>],
+    ['Réclamations et remboursements',<p>Toute réclamation doit être envoyée à contact@helmitravel.tn avec les justificatifs utiles. Un remboursement accepté est effectué par le moyen d’origine ou selon un accord écrit. Les délais bancaires sont indépendants de Helmi Travel.</p>],
+    ['Droit applicable',<p>Ces conditions sont soumises au droit tunisien. Les parties rechercheront une solution amiable avant toute action devant les juridictions compétentes, sans priver le consommateur des protections impératives applicables.</p>]
+  ]},
+  privacy:{title:'Politique de confidentialité',intro:'Comment Helmi Travel collecte, utilise et protège vos données personnelles.',sections:[
+    ['Données collectées',<p>Nous collectons les informations de compte et de contact, les données nécessaires aux voyageurs, réservations et paiements, vos messages, avis et préférences, ainsi que des données techniques de connexion et de sécurité. Les données complètes de carte sont traitées par les prestataires de paiement.</p>],
+    ['Finalités et bases juridiques',<p>Les données servent à exécuter les réservations, gérer les paiements, fournir le support, sécuriser les comptes, respecter les obligations légales et améliorer les services. Les communications commerciales reposent sur votre consentement, révocable à tout moment.</p>],
+    ['Destinataires et transferts',<p>Les données sont accessibles au personnel habilité et peuvent être transmises aux hôtels, transporteurs, loueurs, assureurs, prestataires techniques et autorités lorsque nécessaire. Un service international peut nécessiter un transfert hors de votre pays avec les garanties applicables.</p>],
+    ['Durée de conservation',<p>Les données sont conservées pendant la durée nécessaire au service, puis pendant les délais légaux de preuve, de comptabilité et de lutte contre la fraude. Elles sont ensuite supprimées ou anonymisées.</p>],
+    ['Vos droits',<p>Vous pouvez demander l’accès, la rectification, l’effacement, la limitation, l’opposition ou la portabilité de vos données, et retirer votre consentement. Écrivez à contact@helmitravel.tn. Vous pouvez également saisir l’autorité de protection compétente.</p>],
+    ['Cookies',<p>Le site utilise les mécanismes nécessaires à la session, à l’authentification, à la sécurité et à la réservation. Tout cookie de mesure d’audience, publicitaire ou tiers non indispensable devra faire l’objet d’une information et, lorsque requis, de votre consentement préalable.</p>],
+    ['Sécurité et contact',<p>Nous appliquons des mesures de contrôle d’accès, de chiffrement des mots de passe, de validation et de journalisation adaptées aux risques. Pour toute question : contact@helmitravel.tn.</p>]
+  ]}
+}
+
+export default function LegalContent({type}){const page=pages[type];return <main className="content-page legal-page"><section className="page-hero legal-hero"><span className="kicker">INFORMATIONS JURIDIQUES</span><h1>{page.title}</h1><p>{page.intro}</p></section><article className="legal-document"><p className="legal-updated">Dernière mise à jour : 30 juillet 2026</p>{page.sections.map(([title,content],index)=><section key={title}><h2>{index+1}. {title}</h2>{content}</section>)}</article></main>}

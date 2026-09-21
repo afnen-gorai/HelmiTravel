@@ -1,0 +1,26 @@
+import bcrypt from 'bcryptjs'
+import {QueryTypes} from 'sequelize'
+import {sequelize} from '../config/database.js'
+import {User,Booking,Payment,AuditLog,Order,Hotel,Trip,Destination} from '../models/index.js'
+
+export async function users(req,res,next){try{res.json(await User.findAll({where:req.query.role?{role:req.query.role}:{},attributes:{exclude:['password']},order:[['createdAt','DESC']]}))}catch(e){next(e)}}
+export async function createEmployee(req,res,next){try{if(!req.body.email||!req.body.password||!req.body.nom||!req.body.prenom)return res.status(400).json({message:'Nom, prénom, e-mail et mot de passe requis'});if(await User.findOne({where:{email:req.body.email}}))return res.status(409).json({message:'Cette adresse e-mail existe déjà'});const role=['client','agent'].includes(req.body.role)?req.body.role:'agent';const employee=await User.create({...req.body,password:await bcrypt.hash(req.body.password,12),role,email_verifie:true});const json=employee.toJSON();delete json.password;res.status(201).json(json)}catch(e){next(e)}}
+export async function updateUser(req,res,next){try{const item=await User.findByPk(req.params.id);if(!item)return res.sendStatus(404);if(item.role==='admin'&&item.id!==req.user.id)return res.status(403).json({message:'Un autre administrateur ne peut pas être modifié'});const allowed={nom:req.body.nom,prenom:req.body.prenom,telephone:req.body.telephone,photo:req.body.photo};if(req.body.password)allowed.password=await bcrypt.hash(req.body.password,12);await item.update(allowed);const json=item.toJSON();delete json.password;res.json(json)}catch(e){next(e)}}
+export async function deleteUser(req,res,next){try{const item=await User.findByPk(req.params.id);if(!item)return res.sendStatus(404);if(item.id===req.user.id||item.role==='admin')return res.status(403).json({message:'Ce compte administrateur ne peut pas être supprimé'});if(await Booking.count({where:{userId:item.id}}))return res.status(409).json({message:'Cet utilisateur possède un historique de réservations'});await item.destroy();res.status(204).end()}catch(e){next(e)}}
+export async function auditLogs(req,res,next){try{res.json(await AuditLog.findAll({include:{model:User,attributes:['id','nom','prenom','email']},limit:200,order:[['createdAt','DESC']]}))}catch(e){next(e)}}
+export async function dashboard(req,res,next){try{
+  const year=Math.min(2100,Math.max(2020,Number(req.query.year)||new Date().getFullYear()))
+  const [clients,reservations,hotels,trips,summaryRows,monthlyRevenue,monthlyOrders,serviceTypes,topHotels,topTrips,topDestinations,recentOrders]=await Promise.all([
+    User.count({where:{role:'client'}}),Order.count(),Hotel.count(),Trip.count(),
+    sequelize.query(`SELECT COALESCE(SUM(CASE WHEN p.status='paye' THEN p.amount*(1-COALESCE(LEAST(COALESCE(p.refunded_amount,0)/NULLIF(p.provider_amount,0),1),0)) ELSE 0 END),0) revenue, SUM(p.status='paye') paid, SUM(p.status='en_attente') pending, SUM(p.refund_status IN ('partiel','total')) refunded FROM payments p WHERE p.order_id IS NOT NULL`,{type:QueryTypes.SELECT}),
+    sequelize.query(`SELECT MONTH(date) month, ROUND(SUM(amount*(1-COALESCE(LEAST(COALESCE(refunded_amount,0)/NULLIF(provider_amount,0),1),0))),2) value FROM payments WHERE status='paye' AND order_id IS NOT NULL AND YEAR(date)=:year GROUP BY MONTH(date)`,{replacements:{year},type:QueryTypes.SELECT}),
+    sequelize.query(`SELECT MONTH(created_at) month, COUNT(*) value FROM orders WHERE YEAR(created_at)=:year GROUP BY MONTH(created_at)`,{replacements:{year},type:QueryTypes.SELECT}),
+    sequelize.query(`SELECT type label, COUNT(*) value, ROUND(SUM(montant),2) amount FROM orders GROUP BY type ORDER BY value DESC`,{type:QueryTypes.SELECT}),
+    sequelize.query(`SELECT h.id,h.nom label,COUNT(*) bookings,ROUND(SUM(b.prix_total),2) revenue FROM bookings b JOIN hotels h ON h.id=b.hotel_id WHERE b.status<>'annulee' GROUP BY h.id,h.nom ORDER BY bookings DESC,revenue DESC LIMIT 5`,{type:QueryTypes.SELECT}),
+    sequelize.query(`SELECT t.id,t.titre label,COUNT(*) bookings,ROUND(SUM(b.prix_total),2) revenue FROM bookings b JOIN trips t ON t.id=b.trip_id WHERE b.status<>'annulee' GROUP BY t.id,t.titre ORDER BY bookings DESC,revenue DESC LIMIT 5`,{type:QueryTypes.SELECT}),
+    sequelize.query(`SELECT d.id,d.nom label,COUNT(*) bookings,ROUND(SUM(b.prix_total),2) revenue FROM bookings b LEFT JOIN hotels h ON h.id=b.hotel_id LEFT JOIN trips t ON t.id=b.trip_id JOIN destinations d ON d.id=COALESCE(h.destination_id,t.destination_id) WHERE b.status<>'annulee' GROUP BY d.id,d.nom ORDER BY bookings DESC,revenue DESC LIMIT 5`,{type:QueryTypes.SELECT}),
+    Order.findAll({include:{model:User,attributes:['id','nom','prenom']},limit:6,order:[['createdAt','DESC']]})
+  ])
+  const summary=summaryRows[0]||{},months=Array.from({length:12},(_,i)=>i+1),series=(rows)=>months.map(month=>Number(rows.find(x=>Number(x.month)===month)?.value||0))
+  res.json({year,clients,reservations,hotels,trips,revenue:Number(summary.revenue||0),payments:{paid:Number(summary.paid||0),pending:Number(summary.pending||0),refunded:Number(summary.refunded||0)},monthly:{revenue:series(monthlyRevenue),reservations:series(monthlyOrders)},serviceTypes:serviceTypes.map(x=>({...x,value:Number(x.value),amount:Number(x.amount)})),topHotels,topTrips,topDestinations,recentOrders})
+}catch(e){next(e)}}

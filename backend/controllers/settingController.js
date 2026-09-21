@@ -1,0 +1,7 @@
+import {Setting} from '../models/index.js'
+const allowedTypes=['texte','nombre','booleen','email','telephone','url']
+const cleanKey=value=>String(value||'').trim().toLowerCase().replace(/[^a-z0-9_]/g,'_').slice(0,100)
+export async function list(req,res,next){try{res.json(await Setting.findAll({order:[['cle','ASC']]}))}catch(e){next(e)}}
+export async function create(req,res,next){try{const cle=cleanKey(req.body.cle),type=allowedTypes.includes(req.body.type)?req.body.type:'texte';if(!cle||req.body.valeur===undefined)return res.status(400).json({message:'Clé et valeur requises'});if(/secret|password|token|private_key|api_key/.test(cle))return res.status(400).json({message:'Les secrets doivent rester dans les variables d’environnement du serveur'});const [item,created]=await Setting.findOrCreate({where:{cle},defaults:{valeur:String(req.body.valeur),type}});if(!created)return res.status(409).json({message:'Ce paramètre existe déjà'});res.status(201).json(item)}catch(e){next(e)}}
+export async function update(req,res,next){try{const item=await Setting.findByPk(req.params.id);if(!item)return res.sendStatus(404);const type=allowedTypes.includes(req.body.type)?req.body.type:item.type;res.json(await item.update({valeur:String(req.body.valeur??item.valeur),type}))}catch(e){next(e)}}
+export async function remove(req,res,next){try{const n=await Setting.destroy({where:{id:req.params.id}});res.status(n?204:404).end()}catch(e){next(e)}}

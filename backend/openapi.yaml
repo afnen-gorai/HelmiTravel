@@ -1,0 +1,47 @@
+openapi: 3.0.3
+info:
+  title: Helmi Travel API
+  version: 1.0.0
+  description: API REST de réservation Helmi Travel. Les routes Admin exigent le rôle correspondant.
+servers:
+  - url: https://api.helmitravel.tn/api
+  - url: http://localhost:5000/api
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+  schemas:
+    Error:
+      type: object
+      properties: {message: {type: string}}
+paths:
+  /health:
+    get:
+      summary: État de l'API et de MySQL
+      responses: {'200': {description: Disponible}, '503': {description: Base indisponible}}
+  /auth/register:
+    post:
+      summary: Créer un compte client
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [nom, prenom, email, password], properties: {nom: {type: string}, prenom: {type: string}, email: {type: string, format: email}, password: {type: string, minLength: 8}, telephone: {type: string}}}}}}
+      responses: {'201': {description: Compte créé}, '422': {description: Validation invalide}}
+  /auth/login:
+    post:
+      summary: Obtenir les jetons d'accès et de renouvellement
+      responses: {'200': {description: Authentifié}, '401': {description: Identifiants invalides}, '429': {description: Trop de tentatives}}
+  /destinations:
+    get: {summary: Rechercher les destinations, responses: {'200': {description: Liste}}}
+  /hotels:
+    get: {summary: Rechercher les hôtels, responses: {'200': {description: Liste}}}
+  /trips:
+    get: {summary: Rechercher les voyages, responses: {'200': {description: Liste}}}
+  /orders/me:
+    get: {summary: Dossiers du client connecté, security: [{bearerAuth: []}], responses: {'200': {description: Liste}, '401': {description: Non authentifié}}}
+  /orders/{id}/payment:
+    post:
+      summary: Initier le paiement d'un dossier
+      security: [{bearerAuth: []}]
+      parameters: [{in: path, name: id, required: true, schema: {type: integer}}]
+      responses: {'200': {description: Paiement initié}, '401': {description: Non authentifié}}
+  /admin/orders:
+    get: {summary: Lister les dossiers, security: [{bearerAuth: []}], responses: {'200': {description: Liste}, '403': {description: Rôle refusé}}}
+  /dashboard:
+    get: {summary: Statistiques administratives, security: [{bearerAuth: []}], responses: {'200': {description: Statistiques}, '403': {description: Rôle refusé}}}
